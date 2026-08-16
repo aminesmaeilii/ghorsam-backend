@@ -35,11 +35,11 @@
   --text: var(--tg-theme-text-color, #1a1620);
   --hint: var(--tg-theme-hint-color, #938da3);
 
-  --accent: #c81e35;
-  --accent-2: #ff6a6a;
-  --accent-deep: #6f0f22;
+  --accent: #16a34a;
+  --accent-2: #4ade80;
+  --accent-deep: #14532d;
   --accent-gradient: linear-gradient(135deg, var(--accent-2), var(--accent) 55%, var(--accent-deep));
-  --accent-soft: rgba(200, 30, 53, 0.1);
+  --accent-soft: rgba(22, 163, 74, 0.1);
   --accent-text: #ffffff;
 
   --success: #1fa563;
@@ -58,7 +58,7 @@
   --shadow-sm: 0 1px 2px rgba(30, 15, 25, 0.05), 0 1px 1px rgba(30, 15, 25, 0.03);
   --shadow-md: 0 8px 24px -8px rgba(60, 20, 30, 0.16), 0 2px 8px -2px rgba(60, 20, 30, 0.08);
   --shadow-lg: 0 20px 45px -12px rgba(60, 15, 30, 0.28);
-  --shadow-accent: 0 10px 26px -6px rgba(200, 30, 53, 0.45);
+  --shadow-accent: 0 10px 26px -6px rgba(22, 163, 74, 0.45);
 }
 
 * {
@@ -213,7 +213,7 @@ button:active {
   left: 0;
   border-radius: 11px;
   background: var(--accent-gradient);
-  box-shadow: 0 4px 12px -2px rgba(200, 30, 53, 0.5);
+  box-shadow: 0 4px 12px -2px rgba(22, 163, 74, 0.5);
   transition: transform 0.32s cubic-bezier(0.65, 0, 0.35, 1), width 0.32s cubic-bezier(0.65, 0, 0.35, 1);
   z-index: 0;
 }
@@ -563,7 +563,7 @@ button:active {
   height: 84px;
   margin: 0 auto 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-soft), rgba(200, 30, 53, 0.02));
+  background: linear-gradient(135deg, var(--accent-soft), rgba(22, 163, 74, 0.02));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -606,7 +606,7 @@ button:active {
 
 @keyframes fab-pulse {
   0%, 100% { box-shadow: var(--shadow-accent); }
-  50% { box-shadow: 0 10px 30px -4px rgba(200, 30, 53, 0.65), 0 0 0 8px rgba(200, 30, 53, 0.12); }
+  50% { box-shadow: 0 10px 30px -4px rgba(22, 163, 74, 0.65), 0 0 0 8px rgba(22, 163, 74, 0.12); }
 }
 
 .fab-hint {
@@ -1016,7 +1016,7 @@ button:active {
 .btn-primary {
   background: var(--accent-gradient);
   color: var(--accent-text);
-  box-shadow: 0 8px 20px -6px rgba(200, 30, 53, 0.55);
+  box-shadow: 0 8px 20px -6px rgba(22, 163, 74, 0.55);
 }
 
 .btn-ghost-danger {
@@ -1110,7 +1110,7 @@ button:active {
 .ampm-btn.active {
   background: var(--accent-gradient);
   color: #fff;
-  box-shadow: 0 4px 10px -2px rgba(200, 30, 53, 0.5);
+  box-shadow: 0 4px 10px -2px rgba(22, 163, 74, 0.5);
 }
 
 .clock-face {

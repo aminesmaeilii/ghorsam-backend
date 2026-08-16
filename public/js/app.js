@@ -7,7 +7,7 @@
   const webApp = window.Eitaa && window.Eitaa.WebApp;
 
   const ICONS = ['💊', '💉', '🩹', '🧴', '🌡️', '🫙', '🧪', '🩺'];
-  const COLORS = ['#a51c26', '#1f6fb2', '#1f9d55', '#d99a1f', '#7a3fa0', '#c2447a'];
+  const COLORS = ['#16a34a', '#1f6fb2', '#a51c26', '#d99a1f', '#7a3fa0', '#c2447a'];
 
   const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   function toFa(n) {
@@ -57,8 +57,6 @@
     statStreak: document.getElementById('stat-streak'),
     statTotalTaken: document.getElementById('stat-total-taken'),
     statPillCount: document.getElementById('stat-pill-count'),
-    writeAccessStatus: document.getElementById('write-access-status'),
-    requestWriteAccessBtn: document.getElementById('request-write-access-btn'),
     memberSince: document.getElementById('member-since'),
     profileBackBtn: document.getElementById('profile-back-btn'),
 
@@ -185,19 +183,6 @@
     }
   }
 
-  function requestWriteAccess() {
-    if (!webApp || typeof webApp.requestWriteAccess !== 'function') {
-      showToast('این قابلیت فقط داخل اپ ایتا در دسترسه');
-      return;
-    }
-    webApp.requestWriteAccess((granted) => {
-      state.user.allows_write_to_pm = granted;
-      renderProfile();
-      api('/api/auth/write-access', { method: 'POST', body: JSON.stringify({ granted }) }).catch(() => {});
-      showToast(granted ? 'یادآورها فعال شدن' : 'مجوز داده نشد');
-    });
-  }
-
   function renderProfile() {
     if (!state.user) return;
     const fullName = [state.user.first_name, state.user.last_name].filter(Boolean).join(' ') || 'کاربر ایتا';
@@ -207,11 +192,6 @@
     el.profileAvatarLg.textContent = initial;
     el.profileName.textContent = fullName;
     el.profileId.textContent = `شناسه ایتا: ${toFa(state.user.id)}`;
-
-    const granted = !!state.user.allows_write_to_pm;
-    el.writeAccessStatus.textContent = granted ? 'فعال' : 'غیرفعال';
-    el.writeAccessStatus.className = 'status-chip' + (granted ? '' : ' off');
-    el.requestWriteAccessBtn.hidden = granted;
 
     if (state.user.memberSince) {
       el.memberSince.textContent = toFa(state.user.memberSince.slice(0, 10));
@@ -249,7 +229,6 @@
       switchTab('profile');
     });
     el.profileBackBtn.addEventListener('click', () => switchTab(state.previousTab));
-    el.requestWriteAccessBtn.addEventListener('click', requestWriteAccess);
   }
 
   function switchTab(tab) {
