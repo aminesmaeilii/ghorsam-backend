@@ -41,6 +41,17 @@ current `HH:mm`, and whose owner has granted `allows_write_to_pm`, it calls the 
 `sendMessage` API. A `reminder_log` table with a unique `(pill_id, sent_for)` index
 prevents double-sends if the job overlaps or restarts.
 
+**This is deliberately the only reminder channel, and it's enough.** A Mini App's
+webview has no independent way to register OS-level push notifications — there's no
+Web Push API exposed to it, and nothing survives after the user closes the Mini App.
+The one channel that *does* survive is sending the user a normal PV message through
+the app: Eitaa handles that exactly like any other new chat message, including its
+own native phone push notification. So `sendMessage` already covers both requirements
+(a message inside Eitaa, and a notification on the user's phone) — there's nothing
+extra to build. The only precondition is `allows_write_to_pm`, which is why the
+frontend requests it proactively on first load and exposes a manual "enable" button
+in the profile tab if the user dismissed that prompt.
+
 Because the cron lives in-process, **this service must run as a single, always-on
 instance** — not a scale-to-zero function and not multiple replicas. `node:sqlite`
 writes are synchronous and file-based, so two instances writing the same file

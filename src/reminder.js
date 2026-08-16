@@ -26,7 +26,10 @@ async function checkAndSendReminders() {
     const result = markSent.run(row.pill_id, sentFor);
     if (result.changes === 0) continue; // already sent for this minute
 
-    let text = `${row.icon || '⏰'} وقت خوردن **${row.name}** رسیده!`;
+    // The leading words are what shows up in the phone's push-notification
+    // preview (Eitaa notifies on every new PV message the same way it does
+    // for a normal chat), so front-load the pill name and keep it short.
+    let text = `${row.icon || '⏰'} یادآوری قرصام: وقت **${row.name}** رسیده!`;
     if (row.stock !== null && row.stock !== undefined) {
       text += `\n\nموجودی باقی‌مانده: ${row.stock} عدد`;
       if (row.stock <= (row.low_stock_threshold ?? 5)) {
