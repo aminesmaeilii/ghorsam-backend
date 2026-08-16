@@ -71,9 +71,11 @@ The one channel that *does* survive is sending the user a normal PV message thro
 the app: Eitaa handles that exactly like any other new chat message, including its
 own native phone push notification. So `sendMessage` already covers both requirements
 (a message inside Eitaa, and a notification on the user's phone) — there's nothing
-extra to build. The only precondition is `allows_write_to_pm`, which is why the
-frontend requests it proactively on first load and exposes a manual "enable" button
-in the profile tab if the user dismissed that prompt.
+extra to build. **The only precondition that actually gates PV delivery is
+`allows_write_to_pm`** (requested via `requestWriteAccess()` on first load) — not the
+phone number from `requestContact()`. The app asks for both on first entry, but the
+contact/phone number is stored for its own sake; it doesn't affect whether reminders
+reach the user.
 
 Because the cron lives in-process, **this service must run as a single, always-on
 instance** — not a scale-to-zero function and not multiple replicas. `node:sqlite`
@@ -90,6 +92,9 @@ process's restarts, not against a second independent process).
 - `GET /api/auth/me` — the caller's profile.
 - `POST /api/auth/write-access` — body `{ granted }` (Bearer token), records whether
   the user granted PM write access after `requestWriteAccess()`.
+- `POST /api/auth/contact` — body `{ contactData }` (the raw signed string from
+  `requestContact()`'s callback), verifies it the same way as `initData` and stores
+  the shared phone number. Asked once, on first entry, alongside write access.
 - `POST /api/auth/test-message` — sends the caller a real test PV message right now
   and returns Eitaa's raw `{ status, body }` response. Not used by the UI; it's a
   debugging tool — call it with your own session token when a reminder isn't

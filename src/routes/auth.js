@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { verifyInitData, issueSessionToken, sendMessage } = require('../eitaa');
+const { verifyInitData, verifyContactData, issueSessionToken, sendMessage } = require('../eitaa');
 
 const router = express.Router();
 
@@ -47,6 +47,29 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ ok: true, user: serializeUser(row) });
 });
 
+// Called after the client shows requestContact() so we can store the number.
+// contactData is the raw signed string from the callback's 2nd argument —
+// verified server-side exactly like initData (see verifyContactData).
+router.post('/contact', requireAuth, (req, res) => {
+  const { contactData } = req.body || {};
+  const devSkip = process.env.DEV_SKIP_AUTH === '1';
+
+  let phoneNumber = null;
+  if (devSkip) {
+    phoneNumber = '0912xxxxxxx';
+  } else {
+    const parsed = verifyContactData(contactData);
+    if (!parsed) return res.status(401).json({ ok: false, error: 'invalid_contact_data' });
+    const contact = parsed.contact;
+    if (contact && typeof contact === 'object') {
+      phoneNumber = contact.phone_number || contact.phone || contact.mobile || null;
+    }
+  }
+
+  db.prepare('UPDATE users SET phone_number = ?, contact_shared = 1 WHERE id = ?').run(phoneNumber, req.userId);
+  res.json({ ok: true });
+});
+
 // Diagnostic endpoint: sends the caller a real test message right now and
 // returns Eitaa's raw response (status + body), so a delivery problem can be
 // debugged from the HTTP response itself instead of digging through
@@ -69,6 +92,7 @@ function serializeUser(row) {
     first_name: row.first_name,
     last_name: row.last_name,
     allows_write_to_pm: !!row.allows_write_to_pm,
+    contactShared: !!row.contact_shared,
     memberSince: row.created_at,
   };
 }

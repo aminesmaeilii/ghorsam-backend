@@ -4,17 +4,19 @@ const BOT_TOKEN = process.env.EITAA_BOT_TOKEN || '';
 
 // The docs explicitly recommend bounding initData's age using auth_date so a
 // leaked/logged initData string can't be replayed forever to mint sessions.
-const MAX_INIT_DATA_AGE_SECONDS = 24 * 60 * 60;
+const MAX_SIGNED_DATA_AGE_SECONDS = 24 * 60 * 60;
 
 /**
- * Validates initData raw string against the Eitaa Mini App hash algorithm
- * (see "احراز هویت با hash" in the Eitaa mini-app docs) and returns the
- * parsed fields, including the decoded `user` object, when valid.
+ * Verifies the HMAC-SHA256 hash on a query-string-shaped payload from Eitaa
+ * (used for both `initData` and the `requestContact` callback's second
+ * argument — the docs state the latter is verified "همانند initData", i.e.
+ * the same algorithm). Returns the parsed key/value fields with `hash`
+ * removed, or null if the signature doesn't check out.
  */
-function verifyInitData(initData) {
-  if (!initData || typeof initData !== 'string') return null;
+function verifySignedData(raw) {
+  if (!raw || typeof raw !== 'string') return null;
 
-  const params = new URLSearchParams(initData);
+  const params = new URLSearchParams(raw);
   const receivedHash = params.get('hash');
   if (!receivedHash) return null;
   params.delete('hash');
@@ -33,15 +35,46 @@ function verifyInitData(initData) {
   const b = Buffer.from(receivedHash, 'hex');
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
 
-  const authDate = Number(params.get('auth_date'));
-  if (!authDate || Date.now() / 1000 - authDate > MAX_INIT_DATA_AGE_SECONDS) return null;
+  return Object.fromEntries(params.entries());
+}
 
-  const result = Object.fromEntries(params.entries());
-  if (result.user) {
+/**
+ * Validates initData raw string and returns the parsed fields, including the
+ * decoded `user` object and a freshness-checked `auth_date`, when valid.
+ */
+function verifyInitData(initData) {
+  const result = verifySignedData(initData);
+  if (!result) return null;
+
+  const authDate = Number(result.auth_date);
+  if (!authDate || Date.now() / 1000 - authDate > MAX_SIGNED_DATA_AGE_SECONDS) return null;
+
+  if (!result.user) return null;
+  try {
+    result.user = JSON.parse(result.user);
+  } catch {
+    return null;
+  }
+  return result;
+}
+
+/**
+ * Validates the contact-data string passed as the second argument to
+ * WebApp.requestContact()'s callback, and returns the parsed `contact` field
+ * (or the raw fields if there's no separate `contact` key) when valid.
+ */
+function verifyContactData(raw) {
+  const result = verifySignedData(raw);
+  if (!result) return null;
+
+  const authDate = Number(result.auth_date);
+  if (!authDate || Date.now() / 1000 - authDate > MAX_SIGNED_DATA_AGE_SECONDS) return null;
+
+  if (result.contact) {
     try {
-      result.user = JSON.parse(result.user);
+      result.contact = JSON.parse(result.contact);
     } catch {
-      return null;
+      // leave as the raw string — still usable, just not pre-parsed
     }
   }
   return result;
@@ -88,4 +121,4 @@ function verifySessionToken(token) {
   }
 }
 
-module.exports = { verifyInitData, sendMessage, issueSessionToken, verifySessionToken };
+module.exports = { verifyInitData, verifyContactData, sendMessage, issueSessionToken, verifySessionToken };

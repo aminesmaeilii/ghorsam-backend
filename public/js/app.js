@@ -181,6 +181,15 @@
         api('/api/auth/write-access', { method: 'POST', body: JSON.stringify({ granted }) }).catch(() => {});
       });
     }
+
+    // Asked for once, on first entry — same pattern as write access above.
+    if (webApp && !data.user.contactShared && typeof webApp.requestContact === 'function') {
+      webApp.requestContact((sent, contactData) => {
+        if (!sent) return;
+        state.user.contactShared = true;
+        api('/api/auth/contact', { method: 'POST', body: JSON.stringify({ contactData }) }).catch(() => {});
+      });
+    }
   }
 
   function renderProfile() {
