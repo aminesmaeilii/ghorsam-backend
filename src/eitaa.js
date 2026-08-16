@@ -2,6 +2,10 @@ const crypto = require('node:crypto');
 
 const BOT_TOKEN = process.env.EITAA_BOT_TOKEN || '';
 
+// The docs explicitly recommend bounding initData's age using auth_date so a
+// leaked/logged initData string can't be replayed forever to mint sessions.
+const MAX_INIT_DATA_AGE_SECONDS = 24 * 60 * 60;
+
 /**
  * Validates initData raw string against the Eitaa Mini App hash algorithm
  * (see "احراز هویت با hash" in the Eitaa mini-app docs) and returns the
@@ -28,6 +32,9 @@ function verifyInitData(initData) {
   const a = Buffer.from(computedHash, 'hex');
   const b = Buffer.from(receivedHash, 'hex');
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  const authDate = Number(params.get('auth_date'));
+  if (!authDate || Date.now() / 1000 - authDate > MAX_INIT_DATA_AGE_SECONDS) return null;
 
   const result = Object.fromEntries(params.entries());
   if (result.user) {

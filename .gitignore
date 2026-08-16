@@ -2,3 +2,6 @@ node_modules/
 .env
 data/
 *.log
+# Local-only copy of ../../frontend/ghorsam used for same-origin dev testing;
+# never deploy the frontend from inside this repo.
+public/

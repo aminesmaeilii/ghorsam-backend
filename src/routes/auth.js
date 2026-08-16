@@ -30,11 +30,8 @@ router.post('/verify-init', (req, res) => {
   upsert.run(user.id, user.first_name || '', user.last_name || '', user.allows_write_to_pm ? 1 : 0);
 
   const token = issueSessionToken(user.id);
-  res.json({
-    ok: true,
-    token,
-    user: { id: user.id, first_name: user.first_name, allows_write_to_pm: !!user.allows_write_to_pm },
-  });
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+  res.json({ ok: true, token, user: serializeUser(row) });
 });
 
 // Called after the client shows requestWriteAccess() so we remember the grant.
@@ -43,6 +40,22 @@ router.post('/write-access', requireAuth, (req, res) => {
   db.prepare('UPDATE users SET allows_write_to_pm = ? WHERE id = ?').run(granted ? 1 : 0, req.userId);
   res.json({ ok: true });
 });
+
+router.get('/me', requireAuth, (req, res) => {
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
+  if (!row) return res.status(404).json({ ok: false, error: 'not_found' });
+  res.json({ ok: true, user: serializeUser(row) });
+});
+
+function serializeUser(row) {
+  return {
+    id: row.id,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    allows_write_to_pm: !!row.allows_write_to_pm,
+    memberSince: row.created_at,
+  };
+}
 
 function requireAuth(req, res, next) {
   const { verifySessionToken } = require('../eitaa');
