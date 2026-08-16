@@ -1,0 +1,19 @@
+{
+  "name": "ghorsam-backend",
+  "version": "1.0.0",
+  "description": "Backend for Ghorsam (قرصام) - Eitaa Mini App pill reminder",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3"
+  }
+}
