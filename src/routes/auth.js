@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { verifyInitData, issueSessionToken } = require('../eitaa');
+const { verifyInitData, issueSessionToken, sendMessage } = require('../eitaa');
 
 const router = express.Router();
 
@@ -45,6 +45,22 @@ router.get('/me', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId);
   if (!row) return res.status(404).json({ ok: false, error: 'not_found' });
   res.json({ ok: true, user: serializeUser(row) });
+});
+
+// Diagnostic endpoint: sends the caller a real test message right now and
+// returns Eitaa's raw response (status + body), so a delivery problem can be
+// debugged from the HTTP response itself instead of digging through
+// container logs. Not used by the UI.
+router.post('/test-message', requireAuth, async (req, res) => {
+  try {
+    const result = await sendMessage(
+      req.userId,
+      '✅ این یک پیام تستی از قرصامه. اگه این رو تو ایتا می‌بینی، یعنی ارسال پیام درست کار می‌کنه.'
+    );
+    res.json({ ok: true, sendResult: result });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: 'send_failed', message: err.message });
+  }
 });
 
 function serializeUser(row) {

@@ -47,15 +47,19 @@ function verifyInitData(initData) {
   return result;
 }
 
-/** Sends a text message to a user via the Eitaa app API. Requires prior write access. */
+/**
+ * Sends a text message to a user via the Eitaa app API. Requires prior write
+ * access. Returns { ok, status, body } — callers should log `status`/`body`
+ * on failure since Eitaa's API includes the actual rejection reason there.
+ */
 async function sendMessage(chatId, text) {
   const res = await fetch('https://eitaayar.ir/api/app/sendMessage', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: BOT_TOKEN, chat_id: chatId, text }),
   });
-  const data = await res.json().catch(() => ({}));
-  return data && data.ok === true;
+  const body = await res.json().catch(() => ({}));
+  return { ok: res.ok && body && body.ok === true, status: res.status, body };
 }
 
 // --- Lightweight signed session tokens (no login UI, just proof-of-identity) ---

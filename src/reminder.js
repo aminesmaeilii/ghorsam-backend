@@ -52,7 +52,13 @@ async function checkAndSendReminders() {
     }
 
     try {
-      await sendMessage(row.user_id, text);
+      const result = await sendMessage(row.user_id, text);
+      if (!result.ok) {
+        console.error(
+          `sendMessage rejected for pill ${row.pill_id} (user ${row.user_id}): ` +
+            `HTTP ${result.status} — ${JSON.stringify(result.body)}`
+        );
+      }
     } catch (err) {
       console.error(`Failed to send reminder for pill ${row.pill_id}:`, err.message);
     }

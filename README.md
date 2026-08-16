@@ -72,6 +72,11 @@ process's restarts, not against a second independent process).
 - `GET /api/auth/me` — the caller's profile.
 - `POST /api/auth/write-access` — body `{ granted }` (Bearer token), records whether
   the user granted PM write access after `requestWriteAccess()`.
+- `POST /api/auth/test-message` — sends the caller a real test PV message right now
+  and returns Eitaa's raw `{ status, body }` response. Not used by the UI; it's a
+  debugging tool — call it with your own session token when a reminder isn't
+  arriving, and the response tells you exactly why Eitaa rejected it (wrong token,
+  no write access, etc.) without needing to read container logs.
 - `GET /api/pills` / `POST /api/pills` / `PUT /api/pills/:id` / `DELETE /api/pills/:id`
 - `GET /api/doses/today` — today's schedule with taken/not-taken status.
 - `POST /api/doses/toggle` — body `{ pillId, time }`, marks/unmarks a dose as taken.
