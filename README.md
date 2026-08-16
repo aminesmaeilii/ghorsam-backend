@@ -1,8 +1,13 @@
-# قرصام — Backend
+# قرصام
 
 Express + `node:sqlite` (built into Node.js 22+, no native build needed) backend for the
 Ghorsam Eitaa Mini App: stores each user's pills and reminder times, and sends a message
 in their Eitaa PV via the Eitaa app API when a reminder is due.
+
+This is a single deployable app: `server.js` serves the JSON API under `/api/*` **and**
+the Mini App's static frontend from [`./public`](public) (plain HTML/CSS/JS, no build
+step — see [`public/README.md`](public/README.md) for frontend-specific notes) from the
+same origin. One process, one Hamravesh service, no CORS to configure.
 
 ## Setup
 
@@ -75,19 +80,28 @@ process's restarts, not against a second independent process).
 Every pills/doses route is scoped to `req.userId` (derived from the signed session
 token) at the SQL level — one user can never read or mutate another user's rows.
 
-## Deploying with the frontend
+## Running with Docker
 
-This server also serves static files from `./public` for any path that isn't
-`/api/*`. Build/copy the contents of `../../frontend/ghorsam` into `./public` if you
-want one process to serve both — otherwise host the frontend separately and set
-`window.GHORSAM_API_BASE` in the page, plus `ALLOWED_ORIGINS` on this server so its
-CORS check allows that origin.
+```bash
+docker build -t ghorsam .
+docker run -d --name ghorsam -p 3000:3000 \
+  -e EITAA_BOT_TOKEN=your-token \
+  -e APP_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+  -v ghorsam-data:/data \
+  ghorsam
+```
+
+The image already sets `DATA_DIR=/data` and exposes a `/api/health`-based
+`HEALTHCHECK`, so a named volume mounted at `/data` (as above) is all persistence
+needs — verified locally: the SQLite file lives on the volume and survives
+`docker restart`.
 
 ## Deploying to Hamravesh
 
-**Runtime:** a Node.js 22 (or later) web service running `npm start` (or use the
-included `Procfile`). This needs to be a long-running container, not a serverless
-function — see the reminders note above.
+**Runtime:** deploy the included `Dockerfile` as a long-running web service — not a
+serverless/scale-to-zero function, since the reminder cron lives in the same process
+(see the reminders note above). If Hamravesh's Node buildpack is used instead of
+Docker, it needs Node 22+ and `npm start` (or the included `Procfile`).
 
 **Environment variables to set in the Hamravesh dashboard:**
 
@@ -95,16 +109,17 @@ function — see the reminders note above.
 |--------------------|------------------------------------------------------------------------|
 | `EITAA_BOT_TOKEN`  | your app token from eitaayar.ir                                       |
 | `APP_SECRET`       | a random 32+ char string (generate once, keep it stable across deploys — rotating it logs out every user) |
-| `DATA_DIR`         | the path where you mount the persistent volume, e.g. `/data`          |
+| `DATA_DIR`         | already set to `/data` by the Dockerfile — only override if your volume mounts elsewhere |
 | `PORT`             | whatever Hamravesh expects your app to listen on (often provided automatically) |
-| `ALLOWED_ORIGINS`  | only if the frontend is a separate Hamravesh app/domain; otherwise leave empty |
+| `ALLOWED_ORIGINS`  | leave empty — the frontend is served from this same app/origin now      |
 | `DEV_SKIP_AUTH`    | leave unset (must **not** be `1` in production)                       |
 
 **Database:** you don't need a managed database add-on for this app. It stores
 everything in one embedded SQLite file. What you *do* need is a **persistent
-volume/disk** attached to the service (Hamravesh's container filesystem is wiped on
-every redeploy/restart otherwise) — mount it at some path and set `DATA_DIR` to that
-path. This is a disk, not an "object storage" bucket.
+volume/disk** mounted at `/data` (Hamravesh's container filesystem is otherwise wiped
+on every redeploy/restart) — that's the `-v ghorsam-data:/data` part of the `docker
+run` example above, translated to whatever Hamravesh calls its volume-mount setting.
+This is a disk, not an "object storage" bucket.
 
 **Object storage:** not needed at all — this app has no file/image uploads.
 

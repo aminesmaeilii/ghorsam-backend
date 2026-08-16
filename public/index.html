@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>قرصام</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://developer.eitaa.com/eitaa-web-app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div class="app-scroll">
+      <header class="hero">
+        <div class="hero-glow"></div>
+        <div class="topbar">
+          <div class="topbar-title">
+            <div class="title-row">
+              <button id="profile-chip" class="profile-chip" aria-label="پروفایل">
+                <span id="profile-avatar" class="profile-avatar">؟</span>
+              </button>
+              <div>
+                <h1>قرصام</h1>
+                <p class="subtitle">یادآور خوردن قرص</p>
+              </div>
+            </div>
+          </div>
+          <div id="streak-badge" class="streak-badge" hidden>
+            <span class="streak-flame">🔥</span>
+            <span id="streak-count">۰</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="tabs">
+        <span id="tab-indicator" class="tab-indicator"></span>
+        <button class="tab-btn active" data-tab="today">امروز</button>
+        <button class="tab-btn" data-tab="pills">قرص‌های من</button>
+        <button class="tab-btn" data-tab="profile">پروفایل</button>
+      </div>
+
+      <!-- TODAY TAB -->
+      <section id="tab-today" class="tab-panel">
+        <div class="progress-card">
+          <div class="progress-ring-wrap">
+            <svg viewBox="0 0 80 80" class="progress-ring">
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ff6a6a" />
+                  <stop offset="100%" stop-color="#a51c26" />
+                </linearGradient>
+              </defs>
+              <circle class="progress-ring-bg" cx="40" cy="40" r="34"></circle>
+              <circle id="progress-ring-fg" class="progress-ring-fg" cx="40" cy="40" r="34"></circle>
+            </svg>
+            <div class="progress-ring-label"><span id="progress-fraction">۰/۰</span></div>
+          </div>
+          <div class="progress-text">
+            <p id="progress-headline">هنوز قرصی برای امروز ثبت نشده</p>
+            <p class="progress-hint">با علامت‌زدن هر قرص، آمار روزت به‌روز می‌شه</p>
+          </div>
+        </div>
+
+        <div id="today-list" class="today-list"></div>
+
+        <div id="today-empty" class="empty-state" hidden>
+          <div class="empty-icon-circle"><span class="empty-icon">📅</span></div>
+          <p>برای امروز یادآوری‌ای نداری</p>
+          <p class="empty-hint">اول از تب «قرص‌های من» یک قرص اضافه کن</p>
+        </div>
+      </section>
+
+      <!-- PILLS TAB -->
+      <section id="tab-pills" class="tab-panel" hidden>
+        <div id="pill-list" class="pill-list"></div>
+
+        <div id="pills-empty" class="empty-state" hidden>
+          <div class="empty-icon-circle"><span class="empty-icon">💊</span></div>
+          <p>هنوز قرصی ثبت نکردی</p>
+          <p class="empty-hint">با دکمه پایین صفحه اولین یادآورت رو بساز</p>
+        </div>
+      </section>
+
+      <!-- PROFILE (opened via the avatar chip next to the title, or its own tab) -->
+      <section id="tab-profile" class="tab-panel" hidden>
+        <button id="profile-back-btn" class="back-btn" type="button">→ بازگشت</button>
+
+        <div class="profile-card">
+          <div class="profile-avatar-ring">
+            <div id="profile-avatar-lg" class="profile-avatar-lg">؟</div>
+          </div>
+          <div class="profile-name" id="profile-name">در حال بارگذاری…</div>
+          <div class="profile-id" id="profile-id"></div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="stat-streak">۰</div>
+            <div class="stat-label">روز متوالی 🔥</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-total-taken">۰</div>
+            <div class="stat-label">دوز ثبت‌شده</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-pill-count">۰</div>
+            <div class="stat-label">قرص فعال</div>
+          </div>
+        </div>
+
+        <div class="profile-section">
+          <div class="profile-row">
+            <div class="profile-row-text">
+              <div class="profile-row-title">مجوز پیام در پی‌وی</div>
+              <div class="profile-row-hint">
+                یادآورها هم پیام تو ایتا برات میان، هم نوتیف روی گوشیت — بدون این مجوز هیچ‌کدوم نمی‌رسن
+              </div>
+            </div>
+            <span id="write-access-status" class="status-chip">نامشخص</span>
+          </div>
+          <button id="request-write-access-btn" class="btn btn-primary" type="button" hidden>
+            فعال‌سازی یادآور در ایتا
+          </button>
+        </div>
+
+        <div class="profile-section">
+          <div class="profile-row">
+            <div class="profile-row-text">
+              <div class="profile-row-title">عضو از</div>
+            </div>
+            <span id="member-since" class="status-chip muted">—</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="fab-hint" class="fab-hint" hidden>
+      <button id="fab-hint-close" class="fab-hint-close" type="button" aria-label="بستن راهنما">×</button>
+      <p>برای شروع، قرصات رو از همینجا اضافه کن</p>
+      <div class="fab-hint-arrow"></div>
+    </div>
+    <button id="add-btn" class="fab" aria-label="افزودن قرص">
+      <span class="fab-plus">+</span>
+    </button>
+
+    <!-- Bottom sheet: add / edit pill -->
+    <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+    <div id="sheet" class="sheet" hidden>
+      <div class="sheet-handle"></div>
+      <h2 id="sheet-title">قرص جدید</h2>
+
+      <label class="field-label" for="pill-name">اسم قرص</label>
+      <input id="pill-name" class="text-input" type="text" placeholder="مثلا: ویتامین D" maxlength="60" />
+
+      <label class="field-label">نماد و رنگ</label>
+      <div class="icon-color-row">
+        <div id="icon-picker" class="icon-picker"></div>
+        <div id="color-picker" class="color-picker"></div>
+      </div>
+
+      <label class="field-label">ساعت‌های یادآوری</label>
+      <div id="time-list" class="time-list"></div>
+      <button id="add-time-btn" class="add-time-btn" type="button">+ افزودن ساعت</button>
+
+      <label class="field-label" for="pill-stock">موجودی (اختیاری)</label>
+      <div class="stock-row">
+        <input id="pill-stock" class="text-input stock-input" type="number" min="0" placeholder="مثلا: ۲۰" />
+        <span class="stock-suffix">عدد</span>
+      </div>
+      <p class="field-hint">اگه پر کنی، با هر بار «خورده شد» یکی کم می‌شه و وقتی کم بیاد بهت هشدار می‌دیم.</p>
+
+      <div class="sheet-actions">
+        <button id="delete-btn" class="btn btn-ghost-danger" type="button" hidden>حذف</button>
+        <button id="save-btn" class="btn btn-primary" type="button">ثبت</button>
+      </div>
+    </div>
+
+    <!-- Analog clock time picker -->
+    <div id="clock-backdrop" class="sheet-backdrop" hidden></div>
+    <div id="clock-sheet" class="sheet clock-sheet" hidden>
+      <div class="clock-header">
+        <div class="clock-time-display">
+          <span id="clock-hour-display" class="clock-time-part active" data-mode="hour">۰۸</span>
+          <span class="clock-colon">:</span>
+          <span id="clock-minute-display" class="clock-time-part" data-mode="minute">۰۰</span>
+        </div>
+        <div class="ampm-toggle">
+          <button id="ampm-am" class="ampm-btn active" type="button" data-period="am">صبح</button>
+          <button id="ampm-pm" class="ampm-btn" type="button" data-period="pm">عصر</button>
+        </div>
+      </div>
+
+      <svg id="clock-face" viewBox="0 0 220 220" class="clock-face" touch-action="none">
+        <circle cx="110" cy="110" r="102" class="clock-bg"></circle>
+        <line id="clock-hand" x1="110" y1="110" x2="110" y2="32" class="clock-hand"></line>
+        <circle cx="110" cy="110" r="5" class="clock-center"></circle>
+        <circle id="clock-hand-knob" cx="110" cy="32" r="17" class="clock-hand-knob"></circle>
+        <g id="clock-numbers"></g>
+      </svg>
+
+      <div class="clock-actions">
+        <button id="clock-cancel" class="btn btn-ghost-danger" type="button">انصراف</button>
+        <button id="clock-confirm" class="btn btn-primary" type="button">تایید</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <script src="js/clock.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

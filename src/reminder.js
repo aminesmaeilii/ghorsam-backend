@@ -3,6 +3,19 @@ const db = require('./db');
 const { sendMessage } = require('./eitaa');
 const { tehranNow } = require('./time');
 
+const FA_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+function toFaDigits(n) {
+  return String(n).replace(/\d/g, (d) => FA_DIGITS[d]);
+}
+
+// Pill names are free text the user picked. Eitaa's sendMessage text field
+// supports Markdown (**bold**, __italic__, `code`, [text](url)), so a name
+// containing any of those characters would otherwise corrupt the message's
+// formatting — escape them per the docs' own literal-character convention.
+function escapeEitaaMarkdown(text) {
+  return String(text).replace(/[\\*_`[\]()]/g, '\\$&');
+}
+
 async function checkAndSendReminders() {
   const { date, time } = tehranNow();
   const sentFor = `${date} ${time}`;
@@ -29,9 +42,10 @@ async function checkAndSendReminders() {
     // The leading words are what shows up in the phone's push-notification
     // preview (Eitaa notifies on every new PV message the same way it does
     // for a normal chat), so front-load the pill name and keep it short.
-    let text = `${row.icon || '⏰'} یادآوری قرصام: وقت **${row.name}** رسیده!`;
+    const safeName = escapeEitaaMarkdown(row.name);
+    let text = `${row.icon || '⏰'} یادآوری قرصام: وقت **${safeName}** رسیده!`;
     if (row.stock !== null && row.stock !== undefined) {
-      text += `\n\nموجودی باقی‌مانده: ${row.stock} عدد`;
+      text += `\n\nموجودی باقی‌مانده: ${toFaDigits(row.stock)} عدد`;
       if (row.stock <= (row.low_stock_threshold ?? 5)) {
         text += '\n⚠️ موجودیت داره کم میشه، یادت باشه دوباره تهیه کنی.';
       }
