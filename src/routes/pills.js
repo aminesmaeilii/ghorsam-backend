@@ -15,12 +15,17 @@ function isValidTimesArray(times) {
     Array.isArray(times) &&
     times.length > 0 &&
     times.length <= MAX_TIMES_PER_PILL &&
-    times.every((t) => typeof t === 'string' && TIME_RE.test(t))
+    times.every((t) => typeof t === 'string' && TIME_RE.test(t)) &&
+    // Reject duplicates outright instead of silently squashing them — a
+    // silent dedupe here once turned "3 times a day" into 1 with no
+    // indication anything was dropped. The frontend now prevents adding a
+    // duplicate in the first place; this is the server-side backstop.
+    new Set(times).size === times.length
   );
 }
 
-function dedupeTimes(times) {
-  return Array.from(new Set(times)).sort();
+function sortTimes(times) {
+  return [...times].sort();
 }
 
 function clampThreshold(value, fallback) {
@@ -72,7 +77,7 @@ router.post('/', requireAuth, (req, res) => {
     .run(
       req.userId,
       name.trim().slice(0, MAX_NAME_LENGTH),
-      JSON.stringify(dedupeTimes(times)),
+      JSON.stringify(sortTimes(times)),
       color || '#a51c26',
       icon || '💊',
       stockValue,
@@ -91,7 +96,7 @@ router.put('/:id', requireAuth, (req, res) => {
   const { name, times, active, color, icon, stock, lowStockThreshold } = req.body || {};
   const newName =
     typeof name === 'string' && name.trim() ? name.trim().slice(0, MAX_NAME_LENGTH) : existing.name;
-  const newTimes = isValidTimesArray(times) ? JSON.stringify(dedupeTimes(times)) : existing.times;
+  const newTimes = isValidTimesArray(times) ? JSON.stringify(sortTimes(times)) : existing.times;
   const newActive = typeof active === 'boolean' ? (active ? 1 : 0) : existing.active;
   const newColor = typeof color === 'string' && COLOR_RE.test(color) ? color : existing.color;
   const newIcon =

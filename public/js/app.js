@@ -183,11 +183,19 @@
     }
 
     // Asked for once, on first entry — same pattern as write access above.
-    if (webApp && !data.user.contactShared && typeof webApp.requestContact === 'function') {
+    // Gated on a local flag *in addition to* the server's contactShared: if
+    // the server round-trip below ever fails (it silently did — see
+    // verifyContactData in src/eitaa.js), relying on contactShared alone
+    // meant the popup kept reappearing on every single launch forever.
+    const contactPrompted = localStorage.getItem('ghorsam_contact_prompted') === '1';
+    if (webApp && !data.user.contactShared && !contactPrompted && typeof webApp.requestContact === 'function') {
       webApp.requestContact((sent, contactData) => {
+        localStorage.setItem('ghorsam_contact_prompted', '1');
         if (!sent) return;
         state.user.contactShared = true;
-        api('/api/auth/contact', { method: 'POST', body: JSON.stringify({ contactData }) }).catch(() => {});
+        api('/api/auth/contact', { method: 'POST', body: JSON.stringify({ contactData }) }).catch((err) => {
+          console.error('Failed to save shared contact:', err);
+        });
       });
     }
   }
@@ -465,6 +473,16 @@
 
   // ---------- Time list (uses the analog clock picker) ----------
 
+  // Two rows ending up with the identical "HH:mm" is what silently collapsed
+  // a "3 times a day" pill down to 1 in the Today list — the backend dedupes
+  // exact-duplicate times with no feedback. The real fix is to never let a
+  // duplicate get added in the first place, right here at the picker.
+  function timeExistsInList(value, excludeRow) {
+    return Array.from(el.timeList.querySelectorAll('.time-row')).some(
+      (row) => row !== excludeRow && row.dataset.time === value
+    );
+  }
+
   function addTimeRow(value) {
     const row = document.createElement('div');
     row.className = 'time-row';
@@ -487,6 +505,10 @@
       window.GhorsamClock.open({
         initial: row.dataset.time,
         onConfirm: (newValue) => {
+          if (timeExistsInList(newValue, row)) {
+            showToast('این ساعت قبلاً تو لیست هست — یه ساعت دیگه انتخاب کن');
+            return;
+          }
           row.dataset.time = newValue;
           valueSpan.textContent = faTime(newValue);
         },
@@ -500,7 +522,13 @@
   function openClockForNewTime() {
     window.GhorsamClock.open({
       initial: '08:00',
-      onConfirm: (value) => addTimeRow(value),
+      onConfirm: (value) => {
+        if (timeExistsInList(value, null)) {
+          showToast('این ساعت قبلاً تو لیست هست — یه ساعت دیگه انتخاب کن');
+          return;
+        }
+        addTimeRow(value);
+      },
     });
   }
 

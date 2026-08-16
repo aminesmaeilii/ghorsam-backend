@@ -62,13 +62,23 @@ function verifyInitData(initData) {
  * Validates the contact-data string passed as the second argument to
  * WebApp.requestContact()'s callback, and returns the parsed `contact` field
  * (or the raw fields if there's no separate `contact` key) when valid.
+ *
+ * Unlike initData, the docs never actually specify this payload's exact
+ * field set — they only say it's verifiable "همانند initData" (the same
+ * algorithm). auth_date is therefore checked if present, but NOT required:
+ * an earlier version required it unconditionally, which — if Eitaa's real
+ * payload omits it — made every single call fail verification, silently
+ * (the caller's error was swallowed), so contact_shared never got persisted
+ * and the share-your-number prompt kept reappearing on every launch.
  */
 function verifyContactData(raw) {
   const result = verifySignedData(raw);
   if (!result) return null;
 
-  const authDate = Number(result.auth_date);
-  if (!authDate || Date.now() / 1000 - authDate > MAX_SIGNED_DATA_AGE_SECONDS) return null;
+  if (result.auth_date !== undefined) {
+    const authDate = Number(result.auth_date);
+    if (!authDate || Date.now() / 1000 - authDate > MAX_SIGNED_DATA_AGE_SECONDS) return null;
+  }
 
   if (result.contact) {
     try {
