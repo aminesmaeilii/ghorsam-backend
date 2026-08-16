@@ -6,7 +6,23 @@ const { tehranNow, tehranDateDaysAgo } = require('../time');
 const router = express.Router();
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_STREAK_LOOKBACK_DAYS = 3650; // 10 years — safety bound against a runaway loop
+
+/** Inserts a dose row and decrements stock if tracked. Assumes no existing row for this key. */
+function insertTakenDose(pill, userId, date, time) {
+  let stockDecremented = 0;
+  let newStock = pill.stock;
+  if (pill.stock !== null && pill.stock > 0) {
+    newStock = pill.stock - 1;
+    stockDecremented = 1;
+    db.prepare('UPDATE pills SET stock = ? WHERE id = ?').run(newStock, pill.id);
+  }
+  db.prepare(
+    'INSERT INTO doses (pill_id, user_id, dose_date, dose_time, stock_decremented) VALUES (?, ?, ?, ?, ?)'
+  ).run(pill.id, userId, date, time, stockDecremented);
+  return newStock;
+}
 
 router.get('/today', requireAuth, (req, res) => {
   const { date } = tehranNow();
@@ -64,19 +80,37 @@ router.post('/toggle', requireAuth, (req, res) => {
     return res.json({ ok: true, taken: false, stock: existing.stock_decremented && pill.stock !== null ? pill.stock + 1 : pill.stock });
   }
 
-  let stockDecremented = 0;
-  let newStock = pill.stock;
-  if (pill.stock !== null && pill.stock > 0) {
-    newStock = pill.stock - 1;
-    stockDecremented = 1;
-    db.prepare('UPDATE pills SET stock = ? WHERE id = ?').run(newStock, pillId);
+  const newStock = insertTakenDose(pill, req.userId, date, time);
+  res.json({ ok: true, taken: true, stock: newStock });
+});
+
+// Idempotent "mark as taken" for a specific dose — used by the "خوردم" link
+// in reminder messages (see src/reminder.js buildTakeLink / js/app.js
+// start_param handling). Unlike /toggle, clicking it twice is harmless: the
+// second call just reports it was already taken instead of un-taking it.
+// Accepts an explicit date because a reminder (and its escalations, up to 2h
+// later) can be clicked after midnight, after "today" has moved on.
+router.post('/mark-taken', requireAuth, (req, res) => {
+  const { pillId, date, time } = req.body || {};
+  if (!pillId || !DATE_RE.test(date) || typeof time !== 'string' || !TIME_RE.test(time)) {
+    return res.status(400).json({ ok: false, error: 'pill_id_date_and_time_required' });
   }
 
-  db.prepare(
-    'INSERT INTO doses (pill_id, user_id, dose_date, dose_time, stock_decremented) VALUES (?, ?, ?, ?, ?)'
-  ).run(pillId, req.userId, date, time, stockDecremented);
+  const pill = db.prepare('SELECT * FROM pills WHERE id = ? AND user_id = ?').get(pillId, req.userId);
+  if (!pill) return res.status(404).json({ ok: false, error: 'not_found' });
+  if (!JSON.parse(pill.times).includes(time)) {
+    return res.status(400).json({ ok: false, error: 'time_not_scheduled' });
+  }
 
-  res.json({ ok: true, taken: true, stock: newStock });
+  const existing = db
+    .prepare('SELECT 1 FROM doses WHERE pill_id = ? AND dose_date = ? AND dose_time = ?')
+    .get(pillId, date, time);
+  if (existing) {
+    return res.json({ ok: true, alreadyTaken: true, stock: pill.stock });
+  }
+
+  const newStock = insertTakenDose(pill, req.userId, date, time);
+  res.json({ ok: true, alreadyTaken: false, stock: newStock });
 });
 
 router.get('/stats', requireAuth, (req, res) => {

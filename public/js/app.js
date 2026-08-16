@@ -130,9 +130,38 @@
     try {
       await authenticate();
       await Promise.all([loadPills(), loadToday(), loadStats()]);
+      await handleTakeStartParam();
     } catch (err) {
       console.error(err);
       showToast('خطا در اتصال. دوباره تلاش کنید.');
+    }
+  }
+
+  // Reminder messages can include a "خوردم" link (eitaa.com/app/<name>?startapp=...)
+  // that opens this Mini App with a start_param encoding exactly which dose to
+  // mark as taken — see src/reminder.js buildTakeLink on the backend.
+  function readStartParam() {
+    if (webApp && webApp.initDataUnsafe && webApp.initDataUnsafe.start_param) {
+      return webApp.initDataUnsafe.start_param;
+    }
+    return new URLSearchParams(window.location.search).get('tgWebAppStartParam');
+  }
+
+  async function handleTakeStartParam() {
+    const raw = readStartParam();
+    if (!raw) return;
+    const match = /^take_(\d+)_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})$/.exec(raw);
+    if (!match) return;
+    const [, pillId, y, mo, d, h, mi] = match;
+    const payload = { pillId: Number(pillId), date: `${y}-${mo}-${d}`, time: `${h}:${mi}` };
+
+    try {
+      const result = await api('/api/doses/mark-taken', { method: 'POST', body: JSON.stringify(payload) });
+      showToast(result.alreadyTaken ? 'قبلاً ثبت شده بود ✅' : 'قرصت ثبت شد ✅');
+      await Promise.all([loadToday(), loadStats(), loadPills()]);
+      switchTab('today');
+    } catch {
+      showToast('مشکلی تو ثبت خودکار پیش اومد، از تو برنامک تیک بزن.');
     }
   }
 

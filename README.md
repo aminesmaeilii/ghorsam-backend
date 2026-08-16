@@ -19,6 +19,8 @@ cp .env.example .env
 Fill in `.env`:
 
 - `EITAA_BOT_TOKEN` — your app token from the Eitaa developer panel (eitaayar.ir).
+- `EITAA_MINIAPP_USERNAME` — this Mini App's registered short name (optional, enables
+  the "خوردم" one-tap link in reminders — see "How reminders work" below).
 - `APP_SECRET` — a random string of 32+ characters, used to sign session tokens issued
   after the client verifies with `initData`. Generate one with:
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
@@ -43,8 +45,24 @@ always included for portability across Node 22.5+.)
 `src/reminder.js` runs a cron job every minute (Asia/Tehran timezone), in the same
 process as the HTTP server. For every active pill whose `times` array contains the
 current `HH:mm`, and whose owner has granted `allows_write_to_pm`, it calls the Eitaa
-`sendMessage` API. A `reminder_log` table with a unique `(pill_id, sent_for)` index
-prevents double-sends if the job overlaps or restarts.
+`sendMessage` API. A `reminder_log` table with a unique `(pill_id, sent_for, stage)`
+index prevents double-sends if the job overlaps or restarts.
+
+**Escalation:** if a dose is still unmarked 15 minutes, 30 minutes, 1 hour, or 2 hours
+after its scheduled time, the same cron sends another nag message at each of those
+checkpoints (`ESCALATION_STAGES` in `src/reminder.js`) — and stops immediately once the
+user marks it taken (checked fresh on every tick via the `doses` table), so there's
+never a nag for something already checked off.
+
+**The "خوردم" link:** every reminder (on-time and escalations) includes a Markdown
+link that opens this Mini App via Eitaa's `start_param` mechanism
+(`https://eitaa.com/app/<EITAA_MINIAPP_USERNAME>?startapp=take_<pillId>_<date>_<time>`)
+and auto-marks that exact dose as taken — no need to open the app and tap the checkbox
+manually. The frontend reads it from `initDataUnsafe.start_param` (or the
+`tgWebAppStartParam` query param) once on load and calls the idempotent
+`POST /api/doses/mark-taken`. Requires `EITAA_MINIAPP_USERNAME` to be set (the app's
+registered short name in the Eitaa developer panel); without it, reminders still send,
+just without this link.
 
 **This is deliberately the only reminder channel, and it's enough.** A Mini App's
 webview has no independent way to register OS-level push notifications — there's no
@@ -79,7 +97,11 @@ process's restarts, not against a second independent process).
   no write access, etc.) without needing to read container logs.
 - `GET /api/pills` / `POST /api/pills` / `PUT /api/pills/:id` / `DELETE /api/pills/:id`
 - `GET /api/doses/today` — today's schedule with taken/not-taken status.
-- `POST /api/doses/toggle` — body `{ pillId, time }`, marks/unmarks a dose as taken.
+- `POST /api/doses/toggle` — body `{ pillId, time }`, marks/unmarks *today's* dose as
+  taken (used by the in-app checkbox).
+- `POST /api/doses/mark-taken` — body `{ pillId, date, time }`, idempotently marks a
+  specific dose as taken (used by the "خوردم" link — takes an explicit date since an
+  escalation reminder can be tapped up to 2h later, possibly after midnight).
 - `GET /api/doses/stats` — streak, total taken, today's progress.
 
 Every pills/doses route is scoped to `req.userId` (derived from the signed session
@@ -113,6 +135,7 @@ Docker, it needs Node 22+ and `npm start` (or the included `Procfile`).
 | Variable          | Value                                                                 |
 |--------------------|------------------------------------------------------------------------|
 | `EITAA_BOT_TOKEN`  | your app token from eitaayar.ir                                       |
+| `EITAA_MINIAPP_USERNAME` | this app's registered short name (optional — enables the "خوردم" link) |
 | `APP_SECRET`       | a random 32+ char string (generate once, keep it stable across deploys — rotating it logs out every user) |
 | `DATA_DIR`         | already set to `/data` by the Dockerfile — only override if your volume mounts elsewhere |
 | `PORT`             | whatever Hamravesh expects your app to listen on (often provided automatically) |

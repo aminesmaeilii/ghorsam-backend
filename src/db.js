@@ -42,12 +42,13 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS reminder_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pill_id INTEGER NOT NULL,
-    sent_for TEXT NOT NULL,           -- "YYYY-MM-DD HH:mm" to dedupe within the minute
+    sent_for TEXT NOT NULL,           -- "YYYY-MM-DD HH:mm" of the ORIGINAL scheduled dose (not the send time)
+    stage INTEGER NOT NULL DEFAULT 0, -- 0 = on-time reminder, else minutes-late escalation (15/30/60/120)
     created_at TEXT DEFAULT (datetime('now'))
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_log_unique
-    ON reminder_log(pill_id, sent_for);
+    ON reminder_log(pill_id, sent_for, stage);
 
   -- Presence of a row = that dose was marked as taken.
   CREATE TABLE IF NOT EXISTS doses (
@@ -72,12 +73,26 @@ for (const stmt of [
   'ALTER TABLE pills ADD COLUMN stock INTEGER',
   'ALTER TABLE pills ADD COLUMN low_stock_threshold INTEGER DEFAULT 5',
   'ALTER TABLE doses ADD COLUMN stock_decremented INTEGER DEFAULT 0',
+  'ALTER TABLE reminder_log ADD COLUMN stage INTEGER NOT NULL DEFAULT 0',
 ]) {
   try {
     db.exec(stmt);
   } catch {
     // column already exists
   }
+}
+
+// The unique index on reminder_log was (pill_id, sent_for) before escalation
+// reminders existed; it must include `stage` now, or the second (15-minute)
+// reminder for the same dose would silently collide with the first. Drop and
+// let the CREATE UNIQUE INDEX IF NOT EXISTS above (which already has the
+// right definition for fresh databases) not apply to old ones — so redo it
+// explicitly here too.
+try {
+  db.exec('DROP INDEX IF EXISTS idx_reminder_log_unique');
+  db.exec('CREATE UNIQUE INDEX idx_reminder_log_unique ON reminder_log(pill_id, sent_for, stage)');
+} catch (err) {
+  console.error('Failed to migrate reminder_log unique index:', err.message);
 }
 
 module.exports = db;

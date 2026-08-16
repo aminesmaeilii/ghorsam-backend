@@ -28,4 +28,9 @@ function tehranDateDaysAgo(daysAgo) {
   return tehranParts(base).date;
 }
 
-module.exports = { tehranNow, tehranDateDaysAgo };
+/** Returns { date, time } in Asia/Tehran for an arbitrary Date/timestamp. */
+function tehranAt(date) {
+  return tehranParts(date);
+}
+
+module.exports = { tehranNow, tehranDateDaysAgo, tehranAt };
