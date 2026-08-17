@@ -78,6 +78,7 @@ for (const stmt of [
   'ALTER TABLE reminder_log ADD COLUMN stage INTEGER NOT NULL DEFAULT 0',
   'ALTER TABLE users ADD COLUMN phone_number TEXT',
   'ALTER TABLE users ADD COLUMN contact_shared INTEGER DEFAULT 0',
+  'ALTER TABLE pills ADD COLUMN doctor TEXT',
 ]) {
   try {
     db.exec(stmt);

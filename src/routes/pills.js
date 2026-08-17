@@ -7,6 +7,7 @@ const router = express.Router();
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const MAX_NAME_LENGTH = 100;
+const MAX_DOCTOR_LENGTH = 100;
 const MAX_ICON_LENGTH = 16;
 const MAX_TIMES_PER_PILL = 20;
 
@@ -42,6 +43,7 @@ function serializePill(row) {
     icon: row.icon || '💊',
     stock: row.stock === null || row.stock === undefined ? null : row.stock,
     lowStockThreshold: row.low_stock_threshold ?? 5,
+    doctor: row.doctor || null,
   };
 }
 
@@ -51,7 +53,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const { name, times, color, icon, stock, lowStockThreshold } = req.body || {};
+  const { name, times, color, icon, stock, lowStockThreshold, doctor } = req.body || {};
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ ok: false, error: 'name_required' });
   }
@@ -64,15 +66,19 @@ router.post('/', requireAuth, (req, res) => {
   if (icon !== undefined && (typeof icon !== 'string' || icon.length > MAX_ICON_LENGTH)) {
     return res.status(400).json({ ok: false, error: 'invalid_icon' });
   }
+  if (doctor !== undefined && doctor !== null && typeof doctor !== 'string') {
+    return res.status(400).json({ ok: false, error: 'invalid_doctor' });
+  }
   const stockValue = stock === undefined || stock === null || stock === '' ? null : Number(stock);
   if (stockValue !== null && (!Number.isInteger(stockValue) || stockValue < 0 || stockValue > 100000)) {
     return res.status(400).json({ ok: false, error: 'invalid_stock' });
   }
+  const doctorValue = typeof doctor === 'string' && doctor.trim() ? doctor.trim().slice(0, MAX_DOCTOR_LENGTH) : null;
 
   const info = db
     .prepare(
-      `INSERT INTO pills (user_id, name, times, color, icon, stock, low_stock_threshold)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO pills (user_id, name, times, color, icon, stock, low_stock_threshold, doctor)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       req.userId,
@@ -81,7 +87,8 @@ router.post('/', requireAuth, (req, res) => {
       color || '#a51c26',
       icon || '💊',
       stockValue,
-      clampThreshold(lowStockThreshold, 5)
+      clampThreshold(lowStockThreshold, 5),
+      doctorValue
     );
 
   const row = db.prepare('SELECT * FROM pills WHERE id = ?').get(info.lastInsertRowid);
@@ -93,7 +100,7 @@ router.put('/:id', requireAuth, (req, res) => {
   const existing = db.prepare('SELECT * FROM pills WHERE id = ? AND user_id = ?').get(id, req.userId);
   if (!existing) return res.status(404).json({ ok: false, error: 'not_found' });
 
-  const { name, times, active, color, icon, stock, lowStockThreshold } = req.body || {};
+  const { name, times, active, color, icon, stock, lowStockThreshold, doctor } = req.body || {};
   const newName =
     typeof name === 'string' && name.trim() ? name.trim().slice(0, MAX_NAME_LENGTH) : existing.name;
   const newTimes = isValidTimesArray(times) ? JSON.stringify(sortTimes(times)) : existing.times;
@@ -110,11 +117,17 @@ router.put('/:id', requireAuth, (req, res) => {
           ? Number(stock)
           : existing.stock;
   const newThreshold = clampThreshold(lowStockThreshold, existing.low_stock_threshold);
+  const newDoctor =
+    doctor === undefined
+      ? existing.doctor
+      : typeof doctor === 'string' && doctor.trim()
+        ? doctor.trim().slice(0, MAX_DOCTOR_LENGTH)
+        : null;
 
   db.prepare(
-    `UPDATE pills SET name = ?, times = ?, active = ?, color = ?, icon = ?, stock = ?, low_stock_threshold = ?
+    `UPDATE pills SET name = ?, times = ?, active = ?, color = ?, icon = ?, stock = ?, low_stock_threshold = ?, doctor = ?
      WHERE id = ?`
-  ).run(newName, newTimes, newActive, newColor, newIcon, newStock, newThreshold, id);
+  ).run(newName, newTimes, newActive, newColor, newIcon, newStock, newThreshold, newDoctor, id);
 
   const row = db.prepare('SELECT * FROM pills WHERE id = ?').get(id);
   res.json({ ok: true, pill: serializePill(row) });
