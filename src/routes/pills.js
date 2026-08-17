@@ -122,9 +122,13 @@ router.put('/:id', requireAuth, (req, res) => {
 
 router.delete('/:id', requireAuth, (req, res) => {
   const id = Number(req.params.id);
-  const info = db.prepare('DELETE FROM pills WHERE id = ? AND user_id = ?').run(id, req.userId);
-  if (info.changes === 0) return res.status(404).json({ ok: false, error: 'not_found' });
+  const existing = db.prepare('SELECT id FROM pills WHERE id = ? AND user_id = ?').get(id, req.userId);
+  if (!existing) return res.status(404).json({ ok: false, error: 'not_found' });
+  // doses.pill_id has a FK constraint (foreign_keys = ON), so child rows
+  // must go before the pill itself or the delete is rejected.
   db.prepare('DELETE FROM doses WHERE pill_id = ?').run(id);
+  db.prepare('DELETE FROM reminder_log WHERE pill_id = ?').run(id);
+  db.prepare('DELETE FROM pills WHERE id = ?').run(id);
   res.json({ ok: true });
 });
 
